@@ -20,59 +20,70 @@ public class Elevator implements Runnable {
     public void run() {
         try {
             while (true) {
-                while (!this.destinationFloors.isEmpty()) {
-                    int currentDestination = this.destinationFloors.get(0);
-                    while (this.currentFloor != currentDestination) {
-                        if (this.currentFloor < currentDestination) {
-                            goUp();
-                        }else{
-                            goDown();
+                synchronized (this.destinationFloors) {
+                    while (!this.destinationFloors.isEmpty()) {
+                        int currentDestination = this.destinationFloors.get(0);
+                        while (this.currentFloor != currentDestination) {
+                            if (this.currentFloor < currentDestination) {
+                                goUp();
+                            } else {
+                                goDown();
+                            }
                         }
+                        openDoors();
+                        closeDoors();
+                        this.destinationFloors.remove(0);
                     }
-                    this.destinationFloors.remove(0);
-                    openDoors();
-                    closeDoors();
+                    System.out.println("elevator number " + this.id + " wait for orders ");
+                    this.destinationFloors.wait();
                 }
-                System.out.println("elevator number " + this.id + " wait for orders ");
-                Thread.sleep(10000);
             }
         } catch (Exception e) {
             System.out.println("elevator " + this.id + "***FAIL*** " + e);
         }
     }
 
-    public void openDoors() {
+    public void addDestination(Request request){
+        ElevatorRequest elevatorRequest = (ElevatorRequest) request;
+        this.destinationFloors.add (0, elevatorRequest.getSourceFloor());
+        this.destinationFloors.add(elevatorRequest.getDestinationFloor());
+        synchronized (this.destinationFloors) {
+            this.destinationFloors.notify();
+        }
+    }
+
+    private void openDoors() {
         try {
             System.out.println("elevator number " + this.id + " opening doors at floor " + this.currentFloor);
-            Thread.sleep(2000);
+            this.destinationFloors.wait(2000);
         } catch (InterruptedException e) {
             System.out.println("elevator number " + this.id + " ***FAIL*** opening doors at floor " + this.currentFloor);
         }
     }
 
-    public void closeDoors() {
+    private void closeDoors() {
         try {
             System.out.println("elevator number " + this.id + " closing doors at floor " + this.currentFloor);
-            Thread.sleep(2000);
+            this.destinationFloors.wait(2000);
         } catch (InterruptedException e) {
             System.out.println("elevator number " + this.id + " ***FAIL*** closing doors at floor " + this.currentFloor);
         }
     }
 
-    public void goUp() {
+    private void goUp() {
         try {
-            System.out.println("elevator number " + this.id + " going up from " + this.currentFloor + " to " + this.currentFloor++);
-            Thread.sleep(2000);
+            System.out.println("elevator number " + this.id + " going up from " + this.currentFloor + " to " + ++this.currentFloor);
+            this.destinationFloors.wait(2000);
         } catch (InterruptedException e) {
             System.out.println("elevator number " + this.id + " ***FAIL*** go up at floor " + this.currentFloor);
         }
     }
 
-    public void goDown() {
+    private void goDown() {
         if (this.currentFloor > 0) {
             try {
-                System.out.println("elevator number " + this.id + " going down from " + this.currentFloor + " to " + this.currentFloor--);
-                Thread.sleep(2000);
+                System.out.println("elevator number " + this.id + " going down from " + this.currentFloor + " to " + --this.currentFloor);
+                this.destinationFloors.wait(2000);
             } catch (InterruptedException e) {
                 System.out.println("elevator number " + this.id + " ***FAIL*** go down at floor " + this.currentFloor);
             }
@@ -81,19 +92,15 @@ public class Elevator implements Runnable {
         }
     }
 
-    public void addDestination(Request request){
-        //TODO: fix logic, source floor need to be serve first...
-        ElevatorRequest elevatorRequest = (ElevatorRequest) request;
-        this.destinationFloors.add(elevatorRequest.getFloorSource());
-        this.destinationFloors.add(elevatorRequest.getFloorDistination());
-        Collections.sort(this.destinationFloors);
-    }
-
     public int getId() {
         return id;
     }
 
+    public int getCurrentFloor() {
+        return currentFloor;
+    }
 
-
-
+    public List<Integer> getDestinationFloors() {
+        return destinationFloors;
+    }
 }
